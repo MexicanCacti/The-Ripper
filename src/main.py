@@ -44,12 +44,18 @@ def main():
     packageFile = os.path.abspath(packageFile)
     getPackages(packageFile)    
 
-    ripper = rip.Ripper()
+    app = QApplication(sys.argv)
+
+    ripper = rip.Ripper(None)
     threading.Thread(target = ripper.processQueue, daemon=True).start()
 
-    app = QApplication(sys.argv)
     window = myGui.MainWindow(ripper)
+
+    ripper.window = window
+    threading.Thread(target = ripper.processQueue, daemon=True).start()
+
     window.show()
+
     sys.exit(app.exec())
 
 if __name__ == '__main__':

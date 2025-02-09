@@ -5,7 +5,8 @@ from utils import trimFile
 import os, sys
 
 class Ripper():
-    def __init__(self):
+    def __init__(self, window):
+        self.window = None
         self.ripQueue = queue.Queue()
         self.doneQueue = queue.Queue()
         self.downloadDir = Path().absolute() / "music"
@@ -26,10 +27,16 @@ class Ripper():
         return ffmpegPath
 
     def downloadProgress(self, download):
-        if download['status'] == 'downloading':
-            print(f"Downloading {download['filename']} - {download['_percent_str']} at {download['_speed_str']} ETA {download['_eta_str']}")
         if download['status'] == 'finished':
             self.doneQueue.put(trimFile(download['filename']))
+        elif download['status'] == 'downloading':
+            self.window.updateProgressSignal.emit({
+            'status': 'downloading',
+            'filename': download['filename'],
+            '_percent_str': download['_percent_str'],
+            '_speed_str': download['_speed_str'],
+            '_eta_str': download['_eta_str']
+        })  
         elif download['status'] == 'error':
             print(f"Error downloading: {download['filename']}")
 
@@ -60,10 +67,6 @@ class Ripper():
                     'restrict_filenames' : True,
                     'ignoreerrors' : True
                 }
-
-                print("Download Path:", downloadPath)
-                print("yt-dlp Options:", yt_dlp_options)
-
 
                 with yt_dlp.YoutubeDL(yt_dlp_options) as ytdl:
                     ytdl.download([item[0]])

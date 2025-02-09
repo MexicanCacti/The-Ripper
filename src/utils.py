@@ -21,3 +21,6 @@ def checkValidUrl(url):
 
 def trimFile(filePath):
     return re.sub(r'\.[^.]+$', '', filePath)
+
+def removeAnsiEscape(text):
+    return re.sub(r'\x1b\[[0-9;]*m', '', text)

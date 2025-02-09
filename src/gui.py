@@ -1,11 +1,12 @@
-import threading, time
-from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QGridLayout, QPushButton, QLineEdit, QFileDialog, QTextEdit
+import threading, time, re
+from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QFileDialog, QTextEdit, QProgressBar
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt
-from utils import loadCSS, checkValidUrl
+from PyQt5.QtCore import Qt, pyqtSignal
+from utils import loadCSS, checkValidUrl, removeAnsiEscape, trimFile
 
 
 class MainWindow(QMainWindow):
+    updateProgressSignal = pyqtSignal(dict)
     def __init__(self, ripper):
         super().__init__()
         self.ripper = ripper
@@ -17,6 +18,7 @@ class MainWindow(QMainWindow):
         
         self.initUI()
         threading.Thread(target = self.checkDoneQueue, daemon=True).start()
+        self.updateProgressSignal.connect(self.updateProgress)
         #self.testLabel = QLabel("Test", self)
         #self.testLabel.setGeometry(0, 0, 100, 100)
 
@@ -32,10 +34,20 @@ class MainWindow(QMainWindow):
         self.finishedLabel = QLabel("Finished Items", self)
         self.finishedBox = QTextEdit(self)
         self.finishedBox.setReadOnly(True)
+        self.progressText = QLineEdit(self)
+        self.progressText.setReadOnly(True)
+        self.progressBar = QProgressBar(self)
 
-        self.gridLayout.addWidget(self.finishedLabel, 1, 0, 1, 3)
-        self.gridLayout.addWidget(self.finishedBox, 2, 0, 1, 3)
+    def updateProgress(self, download):
+        progress = removeAnsiEscape(download['_percent_str'].strip())
+        progress = progress.replace('%', '')
+        try:
+            self.progressBar.setValue(int(float(progress))) 
+        except ValueError:
+            print(f"Error: Invalid progress value '{progress}'")
+            progress = 0
 
+        self.progressText.setText(f"Downloading {trimFile(download['filename'])} - {progress} at {removeAnsiEscape(download['_speed_str'])} ETA {removeAnsiEscape(download['_eta_str'])}")
 
     def inputUrl(self):
         # Probably want to include check boxes so that it knows the flags to put into yt-dlp!
@@ -48,15 +60,9 @@ class MainWindow(QMainWindow):
 
     def inputField(self):
         self.urlLabel = QLabel("URL: ", self)
-
         self.urlEdit = QLineEdit(self)
-
         self.urlSubmit = QPushButton("Rip", self)
         self.urlSubmit.clicked.connect(self.inputUrl)
-
-        self.gridLayout.addWidget(self.urlLabel, 0, 0)
-        self.gridLayout.addWidget(self.urlEdit, 0, 1)
-        self.gridLayout.addWidget(self.urlSubmit, 0, 2)
 
     def changeDirectory(self):
         options = QFileDialog.Options()
@@ -72,14 +78,10 @@ class MainWindow(QMainWindow):
         self.directoryButton = QPushButton("Change Directory Path", self)
         self.directoryButton.clicked.connect(self.changeDirectory)
 
-        self.gridLayout.addWidget(self.directoryLabel, 3, 0)
-        self.gridLayout.addWidget(self.directoryPath, 3, 1)
-        self.gridLayout.addWidget(self.directoryButton, 3, 2)
-
     def layout(self):
         self.CW = QWidget()
         self.setCentralWidget(self.CW)
-        self.gridLayout = QGridLayout()
+        self.mainLayout = QVBoxLayout()
 
         self.inputField()
 
@@ -87,7 +89,30 @@ class MainWindow(QMainWindow):
 
         self.directoryField()
 
-        self.CW.setLayout(self.gridLayout)
+        # Url input section
+        self.urlLayout = QHBoxLayout()
+        self.urlLayout.addWidget(self.urlLabel)
+        self.urlLayout.addWidget(self.urlEdit)
+        self.urlLayout.addWidget(self.urlSubmit)
+
+        # Progress Section
+        self.progressLayout = QVBoxLayout()
+        self.progressLayout.addWidget(self.progressText)
+        self.progressLayout.addWidget(self.progressBar)
+
+        # Directory Section
+        self.directoryLayout = QHBoxLayout()
+        self.directoryLayout.addWidget(self.directoryLabel) 
+        self.directoryLayout.addWidget(self.directoryPath)
+        self.directoryLayout.addWidget(self.directoryButton)
+
+        self.mainLayout.addLayout(self.urlLayout)
+        self.mainLayout.addLayout(self.progressLayout)
+        self.mainLayout.addWidget(self.finishedLabel)
+        self.mainLayout.addWidget(self.finishedBox)
+        self.mainLayout.addLayout(self.directoryLayout)
+
+        self.CW.setLayout(self.mainLayout)
 
     def initUI(self):
         self.layout()
