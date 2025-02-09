@@ -3,3 +3,4 @@
 /build
 /dist
 The Ripper.spec
+src/__pycache__
