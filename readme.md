@@ -1,4 +1,4 @@
-# YouTube Music Ripper
+# The Ripper
 
 This is a Python-based application that allows you to download and convert YouTube videos to MP3 format. It includes a graphical user interface (GUI) built with PyQt5. The application uses `yt-dlp` to handle video downloading and `FFmpeg` to convert the audio to MP3.
 
