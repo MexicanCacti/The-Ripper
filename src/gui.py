@@ -1,7 +1,8 @@
-import threading, time, re
+import threading, time, sys, os
+from pathlib import Path
 from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QFileDialog, QTextEdit, QProgressBar
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import pyqtSignal
 from utils import loadCSS, checkValidUrl, removeAnsiEscape, trimFile
 
 
@@ -17,10 +18,30 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("images/icon.jpg"))
         
         self.initUI()
+        self.loadStyles()
         threading.Thread(target = self.checkDoneQueue, daemon=True).start()
         self.updateProgressSignal.connect(self.updateProgress)
-        #self.testLabel = QLabel("Test", self)
-        #self.testLabel.setGeometry(0, 0, 100, 100)
+
+    def loadStyles(self):
+        if hasattr(sys, 'frozen'):
+            css = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        else:
+            css = Path().absolute()
+        
+        css = os.path.join(css, "styles", "global.css")
+
+        if not os.path.exists(css):
+            print(f"[Error]: Couldn't find global style at {css}")
+            raise FileNotFoundError("global.css not found")
+
+        try:
+            with open(css, "r") as css_file:
+                style = css_file.read()
+                self.setStyleSheet(style)
+        except Exception as e:
+            print(f"Error opening {css}: e")
+
+        
 
     def checkDoneQueue(self):
         while True:
@@ -116,79 +137,4 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
         self.layout()
-
-    def demoLabel(self):
-        labelStyle = loadCSS("styles/text.css", "QLabel")
-        label = QLabel("Test", self)
-        label.setGeometry(0, 0, 500, 100)
-        label.setStyleSheet(labelStyle)
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-    def demoBackgroundImage(self):
-        background = QLabel(self)
-        background.setGeometry(0, 0, self.width, self.height)
-        backgroundImage = QPixmap("images/background.jpg")
-        background.setPixmap(backgroundImage)
-        background.setScaledContents(True)
-        # Center Image
-        background.setGeometry(
-            (self.width - background.width()) // 2,
-            (self.height - background.height()) // 2,
-            background.width(),
-            background.height()
-        )
-
-    def demoButton(self):
-        self.testLabel = QLabel("Test", self)
-        self.testLabel.setGeometry(0, 0, 100, 100)
-        self.button = QPushButton("Rip", self)
-        self.button.setGeometry(200, 200, 100, 100)
-        self.button.clicked.connect(self.demoClick)
-        self.testLabel.setGeometry(150, 300, 200, 100)
-
-    def demoClick(self):
-        print("Clicked! :)")
-        self.button.setText("Pressed!")
-        self.button.setDisabled(True)
-        self.testLabel.setText("Clicked the button!")
-
-    def demoUI(self):
-        CW = QWidget()
-        self.setCentralWidget(CW)
-        labelStyle = loadCSS("styles/text.css", "QLabel")
-
-        labels = []
-
-        label1 = QLabel("#1")
-        label2 = QLabel("#2")
-        label3 = QLabel("#3")
-        label4 = QLabel("#4")
-        label5 = QLabel("#5")
-
-        labels.append(label1)
-        labels.append(label2)
-        labels.append(label3)
-        labels.append(label4)
-        labels.append(label5)
-
-        for label in labels:
-            label.setStyleSheet(labelStyle)
-        
-        label1.setStyleSheet("background-color: green")
-        label2.setStyleSheet("background-color: red")
-        label3.setStyleSheet("background-color: blue")
-        label4.setStyleSheet("background-color: yellow")
-        label5.setStyleSheet("background-color: white")
-
-        gridLayout = QGridLayout()
-        gridLayout.addWidget(label1, 0, 0)
-        gridLayout.addWidget(label2, 0, 1)
-        gridLayout.addWidget(label3, 1, 0)
-        gridLayout.addWidget(label4, 1, 1)
-        gridLayout.addWidget(label5, 2, 0)
-        
-        CW.setgridLayout(gridLayout)
-
-    
-        
         

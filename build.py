@@ -23,7 +23,7 @@ def build():
         f"--name={EXE}",
         f"--add-binary={FFMPEG};ffmpeg",
         f"--add-data=packages.txt;.",
-        f"--add-data=styles/text.css;styles",
+        f"--add-data=styles/global.css;styles",
         f"--add-data=images/background.jpg;images",
         f"--add-data=images/icon.jpg;images", 
         "--clean",               
