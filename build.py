@@ -1,7 +1,6 @@
 import os, subprocess, sys
-from pathlib import Path
 
-MAIN = "main.py"
+MAIN = "src/main.py"
 ICON = "images/icon.ico"
 EXE = "The Ripper"
 FFMPEG = "ffmpeg/ffmpeg.exe"
@@ -22,7 +21,7 @@ def build():
         "--onefile",
         "--windowed",
         f"--name={EXE}",
-        f"--add-data={FFMPEG};ffmpeg",
+        f"--add-binary={FFMPEG};ffmpeg",
         f"--add-data=packages.txt;.",
         f"--add-data=styles/text.css;styles",
         f"--add-data=images/background.jpg;images",
