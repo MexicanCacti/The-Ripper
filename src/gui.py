@@ -72,12 +72,15 @@ class MainWindow(QMainWindow):
 
     def inputUrl(self):
         # Probably want to include check boxes so that it knows the flags to put into yt-dlp!
+        self.urlSubmit.setDisabled(True)
         url = self.urlEdit.text()
         urlType = checkValidUrl(self.urlEdit.text())
         if(urlType == -1):
             print(f"{url} not a valid youtube url")
         else:
             self.ripper.addToQueue((url, 0, self.ripper.getPath()))
+        time.sleep(2)
+        self.urlSubmit.setDisabled(False)
 
     def inputField(self):
         self.urlLabel = QLabel("URL: ", self)
