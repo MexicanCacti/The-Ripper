@@ -2,7 +2,7 @@ import queue
 import yt_dlp
 from pathlib import Path
 from utils import trimFile
-import os, sys
+import os, sys, time
 
 class Ripper():
     def __init__(self, window):
@@ -71,6 +71,7 @@ class Ripper():
                 with yt_dlp.YoutubeDL(yt_dlp_options) as ytdl:
                     ytdl.download([item[0]])
 
+                time.sleep(5)
 
                 self.ripQueue.task_done()
 
