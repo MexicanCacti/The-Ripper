@@ -8,7 +8,6 @@ def checkPackage(package, altName=None):
     packageName = package
     if altName is not None:
         packageName = altName
-    
     try:
         importlib.import_module(package)
         print(f'.', end="")
@@ -47,12 +46,12 @@ def main():
     app = QApplication(sys.argv)
 
     ripper = rip.Ripper(None)
-    threading.Thread(target = ripper.processQueue, daemon=True).start()
+    threading.Thread(target = ripper.processRipQueue, daemon=True).start()
+    threading.Thread(target=ripper.processWorkQueue, daemon=True).start()
 
     window = myGui.MainWindow(ripper)
 
     ripper.window = window
-    threading.Thread(target = ripper.processQueue, daemon=True).start()
 
     window.show()
 
