@@ -93,6 +93,7 @@ class MainWindow(QMainWindow):
         self.urlSubmit.setDisabled(True)
         url = self.urlEdit.text()
         urlType = checkValidUrl(self.urlEdit.text())
+        print(f"URL TYPE: {urlType}")
         if(urlType == -1):
             self.submitInfoText.setText(f"{url} not a valid youtube url")
         else:

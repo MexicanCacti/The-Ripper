@@ -60,22 +60,48 @@ class Ripper():
                 downloadPath = item[2] / '%(title)s.%(ext)s'
 
                 yt_dlp_options = {
-                    'quiet' : True,
+                    'quiet' : False,
                     'extract_flat' : True,
-                    'skip_download' : True
+                    'skip_download' : True,
+                    'ffmpeg_location' : str(find_ffmpeg()),
+                    'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                    }]
                 }
+                
+                if item[1] == 1:
+                    yt_dlp_options['noplaylist'] = False
+                    yt_dlp_options['force_generic_extractor'] = True
+                    yt_dlp_options['extract_flat'] = True
+                elif item[1] == 2:
+                    yt_dlp_options['noplaylist'] = True
+                    yt_dlp_options['force_generic_extractor'] = True
+                    yt_dlp_options['extract_flat'] = False
+                else:
+                    yt_dlp_options['noplaylist'] = True
+                    yt_dlp_options['extract_flat'] = True
+            
 
                 with yt_dlp.YoutubeDL(yt_dlp_options) as ytdl:
-                    info = ytdl.extract_info(item[0])
+                    info = ytdl.extract_info(item[0], download=False)
 
-                if item[1] == 1:
+                if item[1] == 0:
+                    songName = info.get('title', 'Unknow Title')
+                    print(f"SongName: {songName}")
+                    self.workQueue.put((item[0], item[1], songName, downloadPath))
+                    self.window.updateQueueSignal.emit((songName, 0))
+                elif item[1] == 1:
                     playlistLen = len(info['entries'])
                     playlistName = info.get('title', 'Unknown Playlist')
-                    self.workQueue.put((item[0], playlistName, downloadPath, playlistLen))
+                    self.workQueue.put((item[0], item[1], playlistName, downloadPath, playlistLen))
                     self.window.updateQueueSignal.emit((playlistName, 0))
-                else:
-                    songName = info.get('title', 'Unknown Title')
-                    self.workQueue.put((item[0], songName, downloadPath))
+                elif item[1] == 2:
+                    songName = info.get("title", "Unknown Title")
+
+                    print(f"SongName: {songName}")
+                    self.workQueue.put((item[0], item[1], songName, downloadPath))
                     self.window.updateQueueSignal.emit((songName, 0))
                 time.sleep(5)
                 self.ripQueue.task_done()
@@ -89,16 +115,15 @@ class Ripper():
         while True:
             try:
                 item = self.workQueue.get(timeout=5.0)
-                print(f"Processing: {item[1]}")
+                print(f"Processing: {item[2]}")
 
-                downloadPath = item[2]
+                downloadPath = item[3]
                 print(f"Download Path: {downloadPath}")
 
-                # check if start of a new playlist
-                if len(item) == 4:
+                if item[1] == 1:
                     if(self.activePlaylistLength == -1):
-                        self.activePlaylistLength = item[3]
-                        self.activePlaylistName = item[1]
+                        self.activePlaylistLength = item[4]
+                        self.activePlaylistName = item[2]
 
                 yt_dlp_options = {
                     'format' : 'bestaudio/best',
@@ -118,6 +143,11 @@ class Ripper():
                     'restrict_filenames' : True,
                     'ignoreerrors' : True
                 }
+
+                if item[1] == 2:
+                    yt_dlp_options['noplaylist'] = True
+                else:
+                    yt_dlp_options['noplaylist'] = False
                     
                 with yt_dlp.YoutubeDL(yt_dlp_options) as ytdl:
                     ytdl.download([item[0]])

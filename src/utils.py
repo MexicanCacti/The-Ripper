@@ -1,6 +1,8 @@
 import re, sys, os
 from pathlib import Path
 
+
+# If song from a playlist, then download only that song not the playlist!
 def loadCSS(cssFileName):
     if hasattr(sys, 'frozen'):
         css = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
@@ -23,15 +25,23 @@ def loadCSS(cssFileName):
 
 # Use Regex to Match this better!    
 def checkValidUrl(url):
-    validPattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)[a-zA-Z0-9_-]{11}|youtu\.be\/[a-zA-Z0-9_-]{11})$")
-    playlistPattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:playlist\?list=)[a-zA-Z0-9_-]+$")
+    youtubePattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)[\w-]{11}(&.*)?|youtu\.be\/[\w-]{11}(&.*)?)$")
+    youtubeMusicPattern = re.compile(r"^https:\/\/music\.youtube\.com\/watch\?v=[\w-]+(?:&[^ ]*)?$")
     
-    if re.match(playlistPattern, url):
+    youtubePlaylistPattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?youtube\.com\/playlist\?list=[\w-]+$")
+    youtubeMusicPlaylistPattern = re.compile(r"^https:\/\/music\.youtube\.com\/playlist\?list=[\w-]+$")
+    
+    youtubeInPlaylistPattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=[\w-]+(?:&list=[\w-]+)(&.*)?$")
+    youtubeMusicInPlaylistPattern = re.compile(r"^https:\/\/music\.youtube\.com\/watch\?v=[\w-]+(?:&list=[\w-]+)(&.*)?$")
+
+    
+    if re.match(youtubeInPlaylistPattern, url) or re.match(youtubeMusicInPlaylistPattern, url):
+        return 2
+    elif re.match(youtubePlaylistPattern, url) or re.match(youtubeMusicPlaylistPattern, url):
         return 1
-    elif re.match(validPattern, url):
+    elif re.match(youtubePattern, url) or re.match(youtubeMusicPattern, url):
         return 0
-    else:
-        return -1
+    else: return -1
 
 # Remove Extension
 def trimFile(filePath):
