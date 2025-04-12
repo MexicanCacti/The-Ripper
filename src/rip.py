@@ -103,7 +103,7 @@ class Ripper():
 
                 print(f"Processing: {url}")
 
-                downloadPath = self.downloadPath / dirName / '%(title)s.%(ext)s'
+                downloadPath = self.downloadPath / '%(title)s.%(ext)s'
                 item.setDownloadPath(downloadPath)
 
                 yt_dlp_options = {
@@ -198,7 +198,7 @@ class Ripper():
                         self.activePlaylistName = playlistName
                         self.activePlaylistSongCount = 0
 
-                downloadArchive = self.downloadPath / downloadDir / 'archive.txt'
+                downloadArchive = self.downloadPath / 'archive.txt'
 
                 yt_dlp_options = {
                     'format' : 'bestaudio/best',
@@ -286,15 +286,12 @@ class Ripper():
     def setPath(self, path):
         path = Path(path)
         # Check if directory is writable
-        if not os.access(self.downloadDir, os.W_OK):
-            print(f"Error: No write permission for directory {path}")
-        else:
-            print(f"Write permission granted for {path}")
-            self.downloadPath = path
-            self.downloadDir = getOnlyDirName(path)
-            print(f"SET DOWNLOAD PATH: {self.downloadPath}, SET DOWNLOAD DIR: {self.downloadDir}")
-            self.fullDownloadPath = self.downloadPath
-            self.fullDownloadPath.mkdir(parents=True, exist_ok=True)  # Make sure directory exists
+        print(f"Write permission granted for {path}")
+        self.downloadPath = path
+        self.downloadDir = getOnlyDirName(path)
+        print(f"SET DOWNLOAD PATH: {self.downloadPath}, SET DOWNLOAD DIR: {self.downloadDir}")
+        self.fullDownloadPath = self.downloadPath
+        self.fullDownloadPath.mkdir(parents=True, exist_ok=True)  # Make sure directory exists
     
     def getFullPath(self):
         return self.fullDownloadPath
