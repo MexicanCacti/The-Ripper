@@ -2,8 +2,8 @@ import threading, time
 from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QFileDialog, QTextEdit, QProgressBar
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
-from utils import loadCSS, checkValidUrl, removeAnsiEscape, trimFile
-
+from utils import loadCSS, removeAnsiEscape, trimFile
+from downloadItem import DownloadItem
 
 class MainWindow(QMainWindow):
     updateProgressSignal = pyqtSignal(dict)
@@ -26,32 +26,37 @@ class MainWindow(QMainWindow):
         self.updateQueueSignal.connect(self.updateQueue) 
 
     def updateQueue(self, item):
-        if len(item) < 2:
+        if len(item) < 2 or not isinstance(item, tuple):
             print(f"Invalid Item Sent to: updateQueue")
 
-        if item[1] == 0:
-            self.queuedBox.append(item[0])
-            print(f"Adding: {item[0]}")
-        elif item[1] == 1:
-            self.removeQueueItem(item[0])
-            print(f"Removing: {item[0]}")
+        itemName = item[0]
+        signalType = item[1]
+
+        if signalType == 0:
+            self.queuedBox.append(itemName)
+            print(f"Adding: {itemName}")
+        elif signalType == 1:
+            self.removeQueueItem(itemName)
+            print(f"Removing: {itemName}")
         else:
-            print(f"[ERROR]: updateQueue: {item[0]}, {item[1]}")     
+            print(f"[ERROR]: updateQueue: {itemName}, {signalType}")       
 
     def updateProgress(self, download):
         progress = removeAnsiEscape(download['_percent_str'].strip())
         progress = progress.replace('%', '')
+        progressValue = int((float(progress)))
         try:
-            self.progressBar.setValue(int(float(progress))) 
+            self.progressBar.setValue(int(float(progress)))
+            if(progressValue < 100):
+                self.progressText.setText(f"Downloading {trimFile(download['filename'])} - {progress} at {removeAnsiEscape(download['_speed_str'])} ETA {removeAnsiEscape(download['_eta_str'])}")
+            else:
+                self.progressText.setText(f"Finished Download: {trimFile(download['filename'])}") 
         except ValueError:
-            print(f"[Error]: Invalid progress value: '{progress}'")
-            progress = 0
+            self.progressText.setText(f"[Error]: Invalid progress value: {progress} for {trimFile(download['filename'])}")
 
-        self.progressText.setText(f"Downloading {trimFile(download['filename'])} - {progress} at {removeAnsiEscape(download['_speed_str'])} ETA {removeAnsiEscape(download['_eta_str'])}")
-
-    def removeQueueItem(self, item):
+    def removeQueueItem(self, url):
         curr = self.queuedBox.toPlainText()
-        new = curr.replace(item, "", 1)
+        new = curr.replace(url, "", 1)
         new = "\n".join([line for line in new.splitlines() if line.strip()])  # Removes empty lines
         self.queuedBox.setPlainText(new)
 
@@ -61,13 +66,12 @@ class MainWindow(QMainWindow):
             if item == None:
                 time.sleep(5)
                 continue
-            self.finishedBox.append(item)
+            self.finishedBox.append(str(item))
 
     def clearFinished(self):
         self.clearFinishedButton.setDisabled(True)
         self.finishedBox.clear()
         QTimer.singleShot(2000, lambda: self.clearFinishedButton.setDisabled(False))
-
 
     def finishedItemsField(self):
         self.finishedLabel = QLabel("Finished Items", self)
@@ -91,13 +95,17 @@ class MainWindow(QMainWindow):
     def inputUrl(self):
         # Probably want to include check boxes so that it knows the flags to put into yt-dlp!
         self.urlSubmit.setDisabled(True)
-        url = self.urlEdit.text()
-        urlType = checkValidUrl(self.urlEdit.text())
+        item = DownloadItem()
+        item.setUrl(self.urlEdit.text())
+        item.setDownloadDir(self.ripper.getPath())
+
+        url = item.getUrl()
+        urlType = item.getUrlType()
         print(f"URL TYPE: {urlType}")
         if(urlType == -1):
             self.submitInfoText.setText(f"{url} not a valid youtube url")
         else:
-            self.ripper.addToQueue((url, urlType, self.ripper.getPath()))
+            self.ripper.addToQueue(item)
             self.submitInfoText.setText(f"Added {url} to rip list")
 
         QTimer.singleShot(2000, lambda: self.urlSubmit.setDisabled(False))
@@ -110,7 +118,7 @@ class MainWindow(QMainWindow):
 
     def changeDirectory(self):
         options = QFileDialog.Options()
-        dir = QFileDialog.getExistingDirectory(self, "Select Directory", str(self.ripper.getPath()), options=options)
+        dir = QFileDialog.getExistingDirectory(self, "Select Directory", str(self.ripper.getFullPath()), options=options)
 
         if dir:
             self.ripper.setPath(dir)
@@ -118,7 +126,7 @@ class MainWindow(QMainWindow):
     
     def directoryField(self):
         self.directoryLabel = QLabel("Directory Path: ", self)
-        self.directoryPath = QLabel(str(self.ripper.getPath()), self)
+        self.directoryPath = QLabel(str(self.ripper.getFullPath()), self)
         self.directoryButton = QPushButton("Change Directory Path", self)
         self.directoryButton.clicked.connect(self.changeDirectory)
 

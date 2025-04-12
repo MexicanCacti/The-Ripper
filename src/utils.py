@@ -1,6 +1,7 @@
 import re, sys, os
 from pathlib import Path
-
+from urllib.parse import urlparse, parse_qs
+import yt_dlp
 
 # If song from a playlist, then download only that song not the playlist!
 def loadCSS(cssFileName):
@@ -9,7 +10,7 @@ def loadCSS(cssFileName):
     else:
         css = Path().absolute()
     
-    css = os.path.join(css, "styles", cssFileName)
+    css = os.path.join(css, "..", "styles", cssFileName)
 
     if not os.path.exists(css):
         print(f"[Error]: Couldn't find {cssFileName}")
@@ -54,16 +55,98 @@ def extractFileName(filePath):
 def removeAnsiEscape(text):
     return re.sub(r'\x1b\[[0-9;]*m', '', text)
 
+def getOnlyDirName(fullPath):
+    dirName = ""
+    fullPathString = str(fullPath)
+    backIndex = len(fullPathString) - 1
+    while fullPathString[backIndex] !='\\' and backIndex >= 0:
+        backIndex -= 1  
+    
+    dirName = fullPathString[backIndex + 1:]
+
+    return dirName
+
+def getOnlyDirNameWithFile(fullPath):
+    dirName = ""
+    fullPathString = str(fullPath)
+    backIndex = len(fullPathString) - 1
+    backSlashCount = 0
+    beginningSlashIndex = 0
+    endingSlashIndex = 0
+    while backSlashCount != 2 and backIndex >= 0:
+        if fullPathString[backIndex] == '\\':
+            backSlashCount += 1
+            if backSlashCount == 1:
+                endingSlashIndex = backIndex
+            else:
+                beginningSlashIndex = backIndex
+                break
+        backIndex -= 1  
+    dirName = fullPathString[beginningSlashIndex + 1:endingSlashIndex]
+
+    return dirName  
+
+
 def find_ffmpeg():
     if hasattr(sys, 'frozen'):
         ffmpegPath = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
     else:
         ffmpegPath = Path().absolute()
+        
     
-    ffmpegPath = os.path.join(ffmpegPath, "ffmpeg", "ffmpeg.exe")
+    ffmpegPath = os.path.join(ffmpegPath, "..", "ffmpeg", "ffmpeg.exe")
 
     if not os.path.exists(ffmpegPath):
         print(f"[Error]: Couldn't find ffmpeg at {ffmpegPath}")
         raise FileNotFoundError("ffmpeg.exe not found")
 
     return ffmpegPath
+
+def extractVideoId(url):
+    parsed_url = urlparse(url)
+    if 'youtu.be' in parsed_url.netloc:
+        return parsed_url.path.strip("/")
+    elif 'youtube.com' in parsed_url.netloc or 'music.youtube.com' in parsed_url.netloc:
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get("v", [None])[0]
+    return None
+
+def inArchive(url, archivePath, isPlaylist):
+    if not archivePath.exists():
+        return (False, 0)
+    
+
+    if isPlaylist:
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': True,
+            'skip_download': True,
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if 'entries' not in info:
+                    return (False, 0)
+                playlist_video_ids = [entry['id'] for entry in info['entries']]
+        except Exception as e:
+            print(f"[ERROR]: Failed to extract playlist: {e}")
+            return (False, 0)
+
+        with archivePath.open("r", encoding="utf-8") as archive:
+            archiveLines = archive.read()
+
+        notInArchiveCount = sum(1 for videoID in playlist_video_ids if videoID not in archiveLines)
+        # Make sure all playlist video ids are in the archive
+        return (notInArchiveCount == 0, notInArchiveCount)
+
+    else:
+        urlID = extractVideoId(url)
+        if not urlID:
+            return (False, 0)
+
+        with archivePath.open("r", encoding="utf-8") as archive:
+            for line in archive:
+                if urlID in line:
+                    return (True, 0)
+        return (False, 0)
