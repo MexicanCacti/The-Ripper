@@ -7,10 +7,10 @@ import yt_dlp
 def loadCSS(cssFileName):
     if hasattr(sys, 'frozen'):
         css = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        css = os.path.join(css, "styles", cssFileName)
     else:
         css = Path().absolute()
-    
-    css = os.path.join(css, "..", "styles", cssFileName)
+        css = os.path.join(css, "..", "styles", cssFileName)
 
     if not os.path.exists(css):
         print(f"[Error]: Couldn't find {cssFileName}")
@@ -89,18 +89,15 @@ def getOnlyDirNameWithFile(fullPath):
 
 def find_ffmpeg():
     if hasattr(sys, 'frozen'):
-        ffmpegPath = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        ffmpegPath = Path(sys._MEIPASS) / "ffmpeg" / "ffmpeg.exe"
     else:
-        ffmpegPath = Path().absolute()
-        
-    
-    ffmpegPath = os.path.join(ffmpegPath, "..", "ffmpeg", "ffmpeg.exe")
+        ffmpegPath = Path(__file__).resolve().parent.parent / "ffmpeg" / "ffmpeg.exe"
 
     if not os.path.exists(ffmpegPath):
         print(f"[Error]: Couldn't find ffmpeg at {ffmpegPath}")
         raise FileNotFoundError("ffmpeg.exe not found")
 
-    return ffmpegPath
+    return str(ffmpegPath)
 
 def extractVideoId(url):
     parsed_url = urlparse(url)

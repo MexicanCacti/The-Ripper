@@ -2,7 +2,7 @@ import queue
 import yt_dlp
 from pathlib import Path
 from utils import extractFileName, getOnlyDirName, find_ffmpeg, inArchive
-import os, time
+import os, time, sys
 from downloadItem import DownloadItem
 
 class Ripper():
@@ -14,16 +14,19 @@ class Ripper():
         self.activePlaylistLength = -1
         self.activePlaylistName = ""
         self.activePlaylistSongCount = 0
-
-        self.downloadDir = "music" #CHANGED
-        self.downloadPath = Path().absolute() #CHANGED
-        self.fullDownloadPath = self.downloadPath / self.downloadDir
+        if getattr(sys, 'frozen', False):
+            defaultDir = Path.home() / "Downloads" / "Ripper"
+        else:
+            defaultDir = Path().absolute() / "music"
+        self.downloadDir = getOnlyDirName(defaultDir)
+        self.downloadPath = defaultDir
+        self.fullDownloadPath = self.downloadPath
         self.fullDownloadPath.mkdir(parents=True, exist_ok=True)  # Make sure directory exists
     
     def downloadProgress(self, download):
         if self.activePlaylistLength >= 0:
             if download['status'] == 'finished':
-                self.doneQueue.put(f"[SUCCESS]: Playlist: {self.activePlaylistName} Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
+                self.doneQueue.put(f"[SUCCESS]: Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
                 self.activePlaylistSongCount += 1
                 self.activePlaylistLength -= 1
                 if self.activePlaylistLength == 0:
@@ -66,7 +69,7 @@ class Ripper():
                 self.activePlaylistLength -= 1
         else:
             if download['status'] == 'finished':
-                self.doneQueue.put(f"[SUCCESS]: {extractFileName(download['filename'])}")
+                self.doneQueue.put(f"[SUCCESS]: Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
                 self.window.updateQueueSignal.emit((extractFileName(download['filename']), 1))
                 self.window.updateProgressSignal.emit({
                     'status': download['status'],
@@ -103,8 +106,9 @@ class Ripper():
 
                 print(f"Processing: {url}")
 
-                downloadPath = self.downloadPath / '%(title)s.%(ext)s'
+                downloadPath = self.fullDownloadPath / '%(title)s.%(ext)s'
                 item.setDownloadPath(downloadPath)
+                item.setDownloadDir(dirName)
 
                 yt_dlp_options = {
                     'quiet' : False,
@@ -182,7 +186,6 @@ class Ripper():
                 songName = item.getSongName()
                 playlistName = item.getPlaylistName()
                 downloadPath = item.getDownloadPath()
-                downloadDir = item.getDownloadDir()
                 playlistLen = item.getPlaylistLen()
 
                 if urlType == 0:
@@ -198,7 +201,7 @@ class Ripper():
                         self.activePlaylistName = playlistName
                         self.activePlaylistSongCount = 0
 
-                downloadArchive = self.downloadPath / 'archive.txt'
+                downloadArchive = self.fullDownloadPath / 'archive.txt'
 
                 yt_dlp_options = {
                     'format' : 'bestaudio/best',
@@ -283,15 +286,22 @@ class Ripper():
             return self.doneQueue.get()
         return None
     
-    def setPath(self, path):
-        path = Path(path)
+    def setPath(self, path=None):
+        path = Path(path).resolve()
+
         # Check if directory is writable
+        if not os.access(path, os.W_OK):
+            print(f"[ERROR] No write permission to {path}")
+            return
+
         print(f"Write permission granted for {path}")
+        
         self.downloadPath = path
-        self.downloadDir = getOnlyDirName(path)
-        print(f"SET DOWNLOAD PATH: {self.downloadPath}, SET DOWNLOAD DIR: {self.downloadDir}")
+        self.downloadDir = path.name
         self.fullDownloadPath = self.downloadPath
-        self.fullDownloadPath.mkdir(parents=True, exist_ok=True)  # Make sure directory exists
+
+        self.fullDownloadPath.mkdir(parents=True, exist_ok=True)
+        print(f"SET DOWNLOAD PATH: {self.downloadPath}")
     
     def getFullPath(self):
         return self.fullDownloadPath

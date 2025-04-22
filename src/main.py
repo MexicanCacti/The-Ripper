@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication
 import gui as myGui
 import rip as rip
 import utils as utils
+from downloadItem import DownloadItem
 
 def checkPackage(package, altName=None):
     packageName = package
@@ -38,10 +39,12 @@ def getPackages(packageFile):
     return
 
 def main():
-    baseDir = os.path.dirname(os.path.abspath(__file__))
-    packageFile = os.path.join(baseDir, "..", "packages.txt")
-    packageFile = os.path.abspath(packageFile)
-    getPackages(packageFile)    
+    if not hasattr(sys, 'frozen'):
+        print("Running in Dev mode!")
+        baseDir = os.path.dirname(os.path.abspath(__file__))
+        packageFile = os.path.join(baseDir, "..", "packages.txt")
+        packageFile = os.path.abspath(packageFile)
+        getPackages(packageFile)    
 
     app = QApplication(sys.argv)
 
