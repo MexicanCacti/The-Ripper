@@ -50,8 +50,7 @@ def main():
 
     ripper = rip.Ripper(None)
     threading.Thread(target = ripper.processRipQueue, daemon=True).start()
-    threading.Thread(target=ripper.processWorkQueue, daemon=True).start()
-
+    
     window = myGui.MainWindow(ripper)
 
     ripper.window = window

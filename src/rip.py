@@ -4,16 +4,15 @@ from pathlib import Path
 from utils import extractFileName, getOnlyDirName, find_ffmpeg, inArchive
 import os, time, sys
 from downloadItem import DownloadItem
+from worker import Worker
+import threading
 
 class Ripper():
     def __init__(self, window):
         self.window = None
         self.ripQueue = queue.Queue()
-        self.workQueue = queue.Queue()
-        self.doneQueue = queue.Queue()
-        self.activePlaylistLength = -1
-        self.activePlaylistName = ""
-        self.activePlaylistSongCount = 0
+        self.updateQueue = queue.Queue()
+
         if getattr(sys, 'frozen', False):
             defaultDir = Path.home() / "Downloads" / "Ripper"
         else:
@@ -22,79 +21,7 @@ class Ripper():
         self.downloadPath = defaultDir
         self.fullDownloadPath = self.downloadPath
         self.fullDownloadPath.mkdir(parents=True, exist_ok=True)  # Make sure directory exists
-    
-    def downloadProgress(self, download):
-        if self.activePlaylistLength >= 0:
-            if download['status'] == 'finished':
-                self.doneQueue.put(f"[SUCCESS]: Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
-                self.activePlaylistSongCount += 1
-                self.activePlaylistLength -= 1
-                if self.activePlaylistLength == 0:
-                    self.activePlaylistLength = -1
-                    self.window.updateQueueSignal.emit((self.activePlaylistName, 1))
-                    self.activePlaylistName = ""
-                    self.window.updateProgressSignal.emit({
-                        'status': download['status'],
-                        '_percent_str': download['_percent_str'],
-                        'filename': download['filename']
-                    })  
-            elif download['status'] == 'downloading':
-                self.window.updateProgressSignal.emit({
-                    'status': download['status'],
-                    'filename': download['filename'],
-                    '_percent_str': download['_percent_str'],
-                    '_speed_str': download['_speed_str'],
-                    '_eta_str': download['_eta_str']
-                })
-            elif download['status'] == 'already_downloaded':
-                if self.activePlaylistLength == 0:
-                    self.doneQueue.put(f"[SKIPPED]: Playlist: {self.activePlaylistName}")
-                    self.window.updateQueueSignal.emit((self.activePlaylistName, 1))
-                    return
-                else:
-                    self.doneQueue.put(f"[SKIPPED]: Playlist: {self.activePlaylistName} Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
-                self.activePlaylistSongCount += 1
-                self.activePlaylistLength -= 1 
-                if self.activePlaylistLength == 0:
-                    self.activePlaylistLength = -1
-                    self.window.updateQueueSignal.emit((self.activePlaylistName, 1))
-                    self.activePlaylistName = ""
-                    self.window.updateProgressSignal.emit({
-                        'status': download['status'],
-                        'filename': download['filename'],
-                        '_percent_str': download['_percent_str'],
-                    })  
-            elif download['status'] == 'error':
-                self.doneQueue.put(f"[ERROR]: {extractFileName(download['filename'])}")
-                self.activePlaylistLength -= 1
-        else:
-            if download['status'] == 'finished':
-                self.doneQueue.put(f"[SUCCESS]: Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
-                self.window.updateQueueSignal.emit((extractFileName(download['filename']), 1))
-                self.window.updateProgressSignal.emit({
-                    'status': download['status'],
-                    '_percent_str': download['_percent_str'],
-                    'filename': download['filename']
-                })  
-            elif download['status'] == 'downloading':
-                self.window.updateProgressSignal.emit({
-                    'status': download['status'],
-                    'filename': download['filename'],
-                    '_percent_str': download['_percent_str'],
-                    '_speed_str': download['_speed_str'],
-                    '_eta_str': download['_eta_str']
-                })
-            elif download['status'] == 'already_downloaded':
-                self.doneQueue.put(f"[SKIPPED]: {extractFileName(download['filename'])}")
-                self.window.updateQueueSignal.emit((extractFileName(download['filename']), 1))  
-                self.window.updateProgressSignal.emit({
-                    'status': download['status'],
-                    '_percent_str': download['_percent_str'],
-                    'filename': download['filename']
-                })    
-            elif download['status'] == 'error':
-                self.doneQueue.put(f"[ERROR]: {extractFileName(download['filename'])}")
-                self.window.updateQueueSignal.emit((extractFileName(download['filename']), 1))
+        self.ffmpegPath = find_ffmpeg()
 
     def processRipQueue(self):
         while True:
@@ -123,6 +50,7 @@ class Ripper():
                     }]
                 }
                 
+                # TODO: Change urlType to enum for easier reading
                 if urlType == 1:
                     yt_dlp_options['noplaylist'] = False
                     yt_dlp_options['force_generic_extractor'] = True
@@ -150,26 +78,24 @@ class Ripper():
                 elif urlType == 1:
                     playlistLen = len(info['entries'])
                     playlistName = info.get('title', 'Unknown Playlist')
-
+                    item.setIsPlaylist(True)
                     item.setPlaylistLen(playlistLen)
                     item.setPlaylistName(playlistName)
 
-                    self.workQueue.put(item)
                     self.window.updateQueueSignal.emit((playlistName, 0))
                 elif urlType == 2:
                     songName = info.get("title", "Unknown Title")
                     print(f"SongName: {songName}")
-
                     item.setSongName(songName)
 
-                    self.workQueue.put(item)
-                    self.window.updateQueueSignal.emit((songName, 0))
+                worker = Worker(self, item)
+                threading.Thread(target=worker.processItem, args=(item.checkIsPlaylist(),), daemon=True).start()
                 time.sleep(5)
                 self.ripQueue.task_done()
             except queue.Empty:
                 pass
             except Exception as e:
-                self.doneQueue.put(f"[ERROR]: {item.getUrl()}")
+                self.updateQueue.put(f"[ERROR]: {item.getUrl()}")
                 print(f"[ERROR]: ProcessRipQueue: {e}")
 
     # 0: URL
@@ -177,93 +103,10 @@ class Ripper():
     # 2 : SongName  || PlaylistName
     # 3 : DownloadPath
     # 4 : playlistLen
-    def processWorkQueue(self):
-        while True:
-            try:
-                item = self.workQueue.get(timeout=5.0)
-                url = item.getUrl()
-                urlType = item.getUrlType()
-                songName = item.getSongName()
-                playlistName = item.getPlaylistName()
-                downloadPath = item.getDownloadPath()
-                playlistLen = item.getPlaylistLen()
 
-                if urlType == 0:
-                    print(f"Processing: {songName}")
-                else:
-                    print(f"Processing: {playlistName}")
-
-                print(f"Download Path: {downloadPath}")
-
-                if urlType == 1:
-                    if(self.activePlaylistLength == -1):
-                        self.activePlaylistLength = playlistLen
-                        self.activePlaylistName = playlistName
-                        self.activePlaylistSongCount = 0
-
-                downloadArchive = self.fullDownloadPath / 'archive.txt'
-
-                yt_dlp_options = {
-                    'format' : 'bestaudio/best',
-                    'download_archive' : downloadArchive,
-                    'extract_audio' : True,
-                    'audio_format' : 'mp3',
-                    'audio_quality' : '192K',
-                    'noplaylist' : False,
-                    'ffmpeg_location' : str(find_ffmpeg()),
-                    'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                    }],
-                    'outtmpl' : str(downloadPath),
-                    'progress_hooks' : [self.downloadProgress],
-                    'noprogress' : True,
-                    'restrict_filenames' : True,
-                    'ignoreerrors' : True
-                }
-
-                isPlaylist = False
-                if urlType == 2:
-                    yt_dlp_options['noplaylist'] = True
-                else:
-                    isPlaylist = True
-                    yt_dlp_options['noplaylist'] = False
-                
-                shouldSkip, notInArchiveCount = inArchive(url, downloadArchive, isPlaylist)
-                if shouldSkip:
-                    if isPlaylist:
-                        self.activePlaylistLength = 0
-                        self.activePlaylistSongCount = playlistLen
-                        self.downloadProgress({
-                            'status': 'already_downloaded',
-                            '_percent_str': '100',
-                            'filename': playlistName
-                        })
-                    else:
-                        # BUG: DOESN'T REMOVE FROM QUEUE ON GUI!
-                        self.downloadProgress({
-                            'status': 'already_downloaded',
-                            '_percent_str': '100',
-                            'filename': songName
-                        })
-                else:
-                    if isPlaylist:
-                        self.activePlaylistLength = notInArchiveCount
-                        self.activePlaylistSongCount = playlistLen - notInArchiveCount
-                    with yt_dlp.YoutubeDL(yt_dlp_options) as ytdl:
-                        ytdl.download(url)
-
-                time.sleep(5)
-                self.workQueue.task_done()
-
-            except queue.Empty:
-                pass
-            except Exception as e:
-                print(f"[ERROR]: processWorkQueue: {e}")
 
     def getQueue(self):
-        return list(self.workQueue.queue)
+        return list(self.ripQueue.queue)
     
     def addToQueue(self, item):
         if not isinstance(item, DownloadItem):  
@@ -276,14 +119,9 @@ class Ripper():
         self.ripQueue.put(item)
         print(self.getQueue())
 
-    def getWorkItem(self):
-        if not self.workQueue.empty():
-            return self.workQueue.get()
-        return None
-
     def getFinishedItem(self):
-        if not self.doneQueue.empty():
-            return self.doneQueue.get()
+        if not self.updateQueue.empty():
+            return self.updateQueue.get()
         return None
     
     def setPath(self, path=None):
@@ -308,9 +146,6 @@ class Ripper():
 
     def getPath(self):
         return self.downloadDir
-    
-    def checkInArchive(self, item):
-        return
 
     
         

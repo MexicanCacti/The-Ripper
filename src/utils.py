@@ -9,8 +9,9 @@ def loadCSS(cssFileName):
         css = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
         css = os.path.join(css, "styles", cssFileName)
     else:
-        css = Path().absolute()
-        css = os.path.join(css, "..", "styles", cssFileName)
+        current_file = Path(__file__).resolve()
+        project_root = current_file.parent.parent
+        css = project_root / "styles" / cssFileName
 
     if not os.path.exists(css):
         print(f"[Error]: Couldn't find {cssFileName}")
@@ -21,7 +22,7 @@ def loadCSS(cssFileName):
             style = css_file.read()
             return style
     except Exception as e:
-        print(f"Error opening {css}: e")
+        print(f"Error opening {css}: {e}")
         return -1
 
 # Use Regex to Match this better!    
@@ -108,10 +109,12 @@ def extractVideoId(url):
         return query_params.get("v", [None])[0]
     return None
 
+# Returns (shouldSkip, notInArchiveCount)
+# shouldSkip: True if any videos in playlist are in archive, False otherwise
+# notInArchiveCount: Number of videos in playlist that are not in archive
 def inArchive(url, archivePath, isPlaylist):
     if not archivePath.exists():
         return (False, 0)
-    
 
     if isPlaylist:
         ydl_opts = {

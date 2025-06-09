@@ -9,6 +9,7 @@ class DownloadItem:
         self.songName = ""
         self.playlistLen = 0
         self.playlistName = ""
+        self.isPlaylist = False
     
     def setUrl(self, url):
         self.url = url
@@ -49,6 +50,12 @@ class DownloadItem:
     
     def getPlaylistName(self):
         return self.playlistName
+    
+    def setIsPlaylist(self, isPlaylist):
+        self.isPlaylist = isPlaylist
+    
+    def checkIsPlaylist(self):
+        return self.isPlaylist
     
     def __str__(self):
         return self.songName
