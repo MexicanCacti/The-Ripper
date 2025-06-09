@@ -9,6 +9,7 @@ import threading
 
 class Ripper():
     def __init__(self, window):
+        self.devMode = True
         self.window = None
         self.ripQueue = queue.Queue()
         self.updateQueue = queue.Queue()
@@ -17,6 +18,7 @@ class Ripper():
             defaultDir = Path.home() / "Downloads" / "Ripper"
         else:
             defaultDir = Path().absolute() / "music"
+            self.devMode = False
         self.downloadDir = getOnlyDirName(defaultDir)
         self.downloadPath = defaultDir
         self.fullDownloadPath = self.downloadPath
@@ -31,7 +33,8 @@ class Ripper():
                 urlType = item.getUrlType()
                 dirName = item.getDownloadDir()
 
-                print(f"Processing: {url}")
+                if self.devMode:
+                    print(f"Processing: {url}")
 
                 downloadPath = self.fullDownloadPath / '%(title)s.%(ext)s'
                 item.setDownloadPath(downloadPath)
@@ -69,7 +72,8 @@ class Ripper():
 
                 if urlType == 0:
                     songName = info.get('title', 'Unknown Title')
-                    print(f"SongName: {songName}")
+                    if self.devMode:
+                        print(f"SongName: {songName}")
 
                     item.setSongName(songName)
 
@@ -85,7 +89,8 @@ class Ripper():
                     self.window.updateQueueSignal.emit((playlistName, 0))
                 elif urlType == 2:
                     songName = info.get("title", "Unknown Title")
-                    print(f"SongName: {songName}")
+                    if self.devMode:
+                        print(f"SongName: {songName}")
                     item.setSongName(songName)
 
                 worker = Worker(self, item)
@@ -109,15 +114,17 @@ class Ripper():
         return list(self.ripQueue.queue)
     
     def addToQueue(self, item):
-        if not isinstance(item, DownloadItem):  
-            print("Error: Item must be an instance of DownloadItem!")
+        if not isinstance(item, DownloadItem):
+            if self.devMode:
+                print("Error: Item must be an instance of DownloadItem!")
             return
 
         item.setDownloadPath(self.downloadPath)
         item.setDownloadDir(self.downloadDir)
 
         self.ripQueue.put(item)
-        print(self.getQueue())
+        if self.devMode:
+            print(self.getQueue())
 
     def getFinishedItem(self):
         if not self.updateQueue.empty():
@@ -129,17 +136,20 @@ class Ripper():
 
         # Check if directory is writable
         if not os.access(path, os.W_OK):
-            print(f"[ERROR] No write permission to {path}")
+            if self.devMode:
+                print(f"[ERROR] No write permission to {path}")
             return
 
-        print(f"Write permission granted for {path}")
+        if self.devMode:
+            print(f"Write permission granted for {path}")
         
         self.downloadPath = path
         self.downloadDir = path.name
         self.fullDownloadPath = self.downloadPath
 
         self.fullDownloadPath.mkdir(parents=True, exist_ok=True)
-        print(f"SET DOWNLOAD PATH: {self.downloadPath}")
+        if self.devMode:
+            print(f"SET DOWNLOAD PATH: {self.downloadPath}")
     
     def getFullPath(self):
         return self.fullDownloadPath

@@ -1,9 +1,12 @@
 from utils import inArchive, extractFileName
 import yt_dlp
 from pathlib import Path
+import sys
 
 class Worker():
     def __init__(self, ripper, item):
+        self.devMode = True
+        if getattr(sys, 'frozen', True): self.devMode = False
         self.ripper = ripper
         self.url = item.getUrl()
         self.downloadPath = item.getDownloadPath()
@@ -34,7 +37,7 @@ class Worker():
                 self.ripper.window.updateQueueSignal.emit((self.item.getSongName(), 1))
         else:
             if download['status'] == 'finished':
-                self.ripper.updateQueue.put(f"[SUCCESS]: Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
+                self.ripper.updateQueue.put(f"[SUCCESS]: {self.activePlaylist}[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])}")
                 self.activePlaylistSongCount += 1
                 self.activePlaylistLen -= 1
             elif download['status'] == 'downloading':
@@ -46,7 +49,7 @@ class Worker():
                     '_eta_str' : download['_eta_str']
                 })
             elif download['status'] == 'already_downloaded':
-                self.ripper.updateQueue.put(f"[SKIPPED]: Playlist: {self.activePlaylist} Song[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])} (Already in archive)")
+                self.ripper.updateQueue.put(f"[SKIPPED]: {self.activePlaylist}[{self.activePlaylistSongCount}]: {extractFileName(download['filename'])} (Already in archive)")
                 self.activePlaylistSongCount += 1
                 self.activePlaylistLen -= 1
             elif download['status'] == 'error':
@@ -69,27 +72,35 @@ class Worker():
                 playlistLen = self.item.getPlaylistLen()
 
             if isPlaylist:
-                print(f"Processing: {playlistName}")
+                if self.devMode:
+                    print(f"Processing: {playlistName}")
             else:
-                print(f"Processing: {songName}")
+                if self.devMode:
+                    print(f"Processing: {songName}")
             
-            print(f"Download Path: {self.downloadPath}")
+            if self.devMode:
+                print(f"Download Path: {self.downloadPath}")
 
             if isPlaylist:
                 self.activePlaylist = playlistName
                 self.activePlaylistLen = playlistLen
             
             downloadArchive = Path(self.downloadPath).parent / 'archive.txt'
-            print(f"Archive path: {downloadArchive}")
-            print(f"Parent directory exists: {downloadArchive.parent.exists()}")
+            if self.devMode:
+                print(f"Archive path: {downloadArchive}")
+                print(f"Parent directory exists: {downloadArchive.parent.exists()}")
             downloadArchive.parent.mkdir(parents=True, exist_ok=True)
-            print(f"Parent directory exists after mkdir: {downloadArchive.parent.exists()}")
+            if self.devMode:
+                print(f"Parent directory exists after mkdir: {downloadArchive.parent.exists()}")
             if not downloadArchive.exists():
-                print("Creating archive.txt file...")
+                if self.devMode:
+                    print("Creating archive.txt file...")
                 downloadArchive.touch()
-                print(f"Archive file exists after creation: {downloadArchive.exists()}")
+                if self.devMode:
+                    print(f"Archive file exists after creation: {downloadArchive.exists()}")
             else:
-                print("Archive file already exists")
+                if self.devMode:
+                    print("Archive file already exists")
 
             yt_dlp_options = {
                 'format' : 'bestaudio/best',
@@ -136,6 +147,7 @@ class Worker():
                 with yt_dlp.YoutubeDL(yt_dlp_options) as ytdl:
                     ytdl.download(self.url)
         except Exception as e:
-            print(f"[ERROR]: processItem: {e}")
+            if self.devMode:
+                print(f"[ERROR]: processItem: {e}")
 
 

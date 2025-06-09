@@ -1,4 +1,4 @@
-import threading, time
+import threading, time, sys
 from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QFileDialog, QTextEdit, QProgressBar
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import pyqtSignal, QTimer, Qt
@@ -10,6 +10,8 @@ class MainWindow(QMainWindow):
     updateQueueSignal = pyqtSignal(tuple)
     def __init__(self, ripper):
         super().__init__()
+        self.devMode = True
+        if getattr(sys, 'frozen', True): self.devMode = False
         self.ripper = ripper
         self.width = 800
         self.height = 600
@@ -19,7 +21,11 @@ class MainWindow(QMainWindow):
         
         self.initUI()
         globalCSS = loadCSS("global.css")
-        print("Couldn't open global.css") if globalCSS == -1 else self.setStyleSheet(globalCSS)
+        if globalCSS == -1:
+            if self.devMode:
+                print("Couldn't open global.css")
+        else:
+            self.setStyleSheet(globalCSS)
 
         threading.Thread(target = self.checkDoneQueue, daemon=True).start()
         self.updateProgressSignal.connect(self.updateProgress)
@@ -27,19 +33,23 @@ class MainWindow(QMainWindow):
 
     def updateQueue(self, item):
         if len(item) < 2 or not isinstance(item, tuple):
-            print(f"Invalid Item Sent to: updateQueue")
+            if self.devMode:
+                print(f"Invalid Item Sent to: updateQueue")
 
         itemName = item[0]
         signalType = item[1]
 
         if signalType == 0:
             self.queuedBox.append(itemName)
-            print(f"Adding: {itemName}")
+            if self.devMode:
+                print(f"Adding: {itemName}")
         elif signalType == 1:
             self.removeQueueItem(itemName)
-            print(f"Removing: {itemName}")
+            if self.devMode:
+                print(f"Removing: {itemName}")
         else:
-            print(f"[ERROR]: updateQueue: {itemName}, {signalType}")       
+            if self.devMode:
+                print(f"[ERROR]: updateQueue: {itemName}, {signalType}")       
 
     def updateProgress(self, download):
         progress = removeAnsiEscape(download['_percent_str'].strip())
@@ -101,7 +111,8 @@ class MainWindow(QMainWindow):
 
         url = item.getUrl()
         urlType = item.getUrlType()
-        print(f"URL TYPE: {urlType}")
+        if self.devMode:
+            print(f"URL TYPE: {urlType}")
         if(urlType == -1):
             self.submitInfoText.setText(f"{url} not a valid youtube url")
         else:
