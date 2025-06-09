@@ -8,6 +8,8 @@ from downloadItem import DownloadItem
 class MainWindow(QMainWindow):
     updateProgressSignal = pyqtSignal(dict)
     updateQueueSignal = pyqtSignal(tuple)
+    appendTextSignal = pyqtSignal(str, str)
+
     def __init__(self, ripper):
         super().__init__()
         self.devMode = True
@@ -29,7 +31,14 @@ class MainWindow(QMainWindow):
 
         threading.Thread(target = self.checkDoneQueue, daemon=True).start()
         self.updateProgressSignal.connect(self.updateProgress)
-        self.updateQueueSignal.connect(self.updateQueue) 
+        self.updateQueueSignal.connect(self.updateQueue)
+        self.appendTextSignal.connect(self.appendText) 
+
+    def appendText(self, text, boxName):
+        if boxName == "queued":
+            self.queuedBox.append(text)
+        elif boxName == "finished":
+            self.finishedBox.append(text)
 
     def updateQueue(self, item):
         if len(item) < 2 or not isinstance(item, tuple):
@@ -40,7 +49,7 @@ class MainWindow(QMainWindow):
         signalType = item[1]
 
         if signalType == 0:
-            self.queuedBox.append(itemName)
+            self.appendTextSignal.emit(itemName, "queued")
             if self.devMode:
                 print(f"Adding: {itemName}")
         elif signalType == 1:
@@ -76,7 +85,7 @@ class MainWindow(QMainWindow):
             if item == None:
                 time.sleep(5)
                 continue
-            self.finishedBox.append(str(item))
+            self.appendTextSignal.emit(str(item), "finished")
 
     def clearFinished(self):
         self.clearFinishedButton.setDisabled(True)
