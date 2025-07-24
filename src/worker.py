@@ -108,7 +108,7 @@ class Worker():
                 'extract_audio' : True,
                 'audio_format' : 'mp3',
                 'audio_quality' : '192K',
-                'noplaylist' : False,
+                'noplaylist' : True,
                 'ffmpeg_location' : self.ripper.ffmpegPath,
                 'postprocessors' : [{
                     'key' : 'FFmpegExtractAudio',
@@ -123,7 +123,7 @@ class Worker():
             }
             
             if isPlaylist:
-                yt_dlp_options['noplaylist'] = True
+                yt_dlp_options['noplaylist'] = False
             
             shouldSkip, notInArchiveCount = inArchive(self.url, downloadArchive, isPlaylist)
 

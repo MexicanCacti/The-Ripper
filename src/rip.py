@@ -60,8 +60,7 @@ class Ripper():
                     yt_dlp_options['extract_flat'] = True
                 elif urlType == 2:
                     yt_dlp_options['noplaylist'] = True
-                    yt_dlp_options['force_generic_extractor'] = True
-                    yt_dlp_options['extract_flat'] = False
+                    yt_dlp_options['extract_flat'] = True
                 else:
                     yt_dlp_options['noplaylist'] = True
                     yt_dlp_options['extract_flat'] = True
@@ -74,10 +73,7 @@ class Ripper():
                     songName = info.get('title', 'Unknown Title')
                     if self.devMode:
                         print(f"SongName: {songName}")
-
                     item.setSongName(songName)
-
-                    self.workQueue.put(item)
                     self.window.updateQueueSignal.emit((songName, 0))
                 elif urlType == 1:
                     playlistLen = len(info['entries'])
@@ -85,7 +81,6 @@ class Ripper():
                     item.setIsPlaylist(True)
                     item.setPlaylistLen(playlistLen)
                     item.setPlaylistName(playlistName)
-
                     self.window.updateQueueSignal.emit((playlistName, 0))
                 elif urlType == 2:
                     songName = info.get("title", "Unknown Title")

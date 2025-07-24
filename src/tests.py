@@ -79,6 +79,14 @@ class TestRipper(unittest.TestCase):
         item.setUrl(playlist_url)
         
         self.assertEqual(item.getUrlType(), 1)  # Playlist type
+    
+    def test_inplaylist_detection(self):
+        """Test inplaylist URL detection"""
+        inplaylist_url = "https://www.youtube.com/watch?v=X5icLlQCwR8&list=PLQMmC9DAcgQCskmnA04APtCJLOgT9p0X3&index=1"
+        item = DownloadItem()
+        item.setUrl(inplaylist_url)
+
+        self.assertEqual(item.getUrlType(), 2) # In Playlist Type
 
     @classmethod
     def tearDownClass(cls):

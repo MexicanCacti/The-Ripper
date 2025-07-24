@@ -27,19 +27,20 @@ def loadCSS(cssFileName):
 
 # Use Regex to Match this better!    
 def checkValidUrl(url):
-    youtubePattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)[\w-]{11}(&.*)?|youtu\.be\/[\w-]{11}(&.*)?)$")
-    youtubeMusicPattern = re.compile(r"^https:\/\/music\.youtube\.com\/watch\?v=[\w-]+(?:&[^ ]*)?$")
+    youtubePattern = re.compile(
+        r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/\S*?(?:watch\?v=|embed\/|v\/|shorts\/)?[\w-]{11}", re.IGNORECASE)
+
+    youtubeMusicPattern = re.compile(
+        r"(?:https?:\/\/)?music\.youtube\.com\/\S*?(?:watch\?v=)?[\w-]{11}", re.IGNORECASE)
     
-    youtubePlaylistPattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?youtube\.com\/playlist\?list=[\w-]+$")
-    youtubeMusicPlaylistPattern = re.compile(r"^https:\/\/music\.youtube\.com\/playlist\?list=[\w-]+$")
+    youtubePlaylistPattern = re.compile(r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)\/(?!watch)[^\s]*playlist[^\s]*[&?]list=", re.IGNORECASE)
     
-    youtubeInPlaylistPattern = re.compile(r"^(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=[\w-]+(?:&list=[\w-]+)(&.*)?$")
-    youtubeMusicInPlaylistPattern = re.compile(r"^https:\/\/music\.youtube\.com\/watch\?v=[\w-]+(?:&list=[\w-]+)(&.*)?$")
+    youtubeInPlaylistPattern = re.compile(r"playlist.*[&?]list=", re.IGNORECASE)
 
     
-    if re.match(youtubeInPlaylistPattern, url) or re.match(youtubeMusicInPlaylistPattern, url):
+    if re.match(youtubeInPlaylistPattern, url) or re.match(youtubeInPlaylistPattern, url):
         return 2
-    elif re.match(youtubePlaylistPattern, url) or re.match(youtubeMusicPlaylistPattern, url):
+    elif re.match(youtubePlaylistPattern, url):
         return 1
     elif re.match(youtubePattern, url) or re.match(youtubeMusicPattern, url):
         return 0
